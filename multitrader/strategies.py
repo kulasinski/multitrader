@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import numpy as np
 
 class Strategy():
     
@@ -37,7 +38,7 @@ class MA20Strat(Strategy):
         self.indicators = ['MA20']
         self.params = params
     
-    def check(self, data, indicators, curr_shares):
+    def check(self, data, indicators, curr_shares, cash_avail):
         """
             Takes in the ochl data, indicators, current amount of shares
             Returns:
@@ -59,7 +60,7 @@ class MA20Strat(Strategy):
         if curr_shares==0: # check if buy
             if curr_close < 0.95 * curr_ma and last_close<=curr_close:
                 # BUY
-                shares_change = +1
+                shares_change = np.floor(cash_avail/curr_close)
         else: # check if sell
             if curr_close > 1.05 * curr_ma and last_close>curr_close:
                 # SELL

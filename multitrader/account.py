@@ -30,11 +30,13 @@ class Account():
     def __init__(self, 
                  cash=0, 
                  commission=None,
+                 cash_per_trade = 0,
                  verbose=True
                 ):
         
         self.set_cash(cash)
         self.set_commission(commission)
+        self.cash_per_trade = cash_per_trade
 
         self.verbose = verbose
         self.strategy = None
@@ -47,6 +49,9 @@ class Account():
     def get_cash(self):
         return self.cash;
     
+    def set_cash_per_trade(self, cash_per_trade):
+        self.cash_per_trade = cash_per_trade
+
     def set_commission(self, commission):
         self.commission = commission
     
@@ -171,6 +176,11 @@ class Account():
         values['wallet'] = [self.cash + in_stocks]
 
         if self.observers is None:
+            values['max_drowdown_pct'] = 0.
+        else:
+            values['max_drowdown_pct'] = round(self.observers['wallet'].min() / self.observers['wallet'].max() *100. - 100., 1)
+
+        if self.observers is None:
             self.observers = pd.DataFrame(values, index=[date])
         else:
             self.observers = self.observers.append(pd.DataFrame(values, index=[date]))
@@ -202,11 +212,24 @@ class Account():
             for t in tickers:
                 
                 curr_close = round(self.data[t].loc[date].Close,2)
+
+                """
+                    Setting cash available for trade
+                    if cash_per_trade is 0 then divide cash proportionally per ticker
+                    Otherwise, attribute the cash_per_trade value times cash
+                """
+
+                cash_avail = self.cash/len(tickers) if self.cash_per_trade==0 else self.cash*self.cash_per_trade
+
+                """
+                    Asking strategy
+                """
                 
                 shares_change, limit, quality = self.strategy.check(
                     self.data[t].loc[:date], 
                     self.indicators[t].loc[:date], 
-                    self.shares[t]
+                    self.shares[t],
+                    cash_avail,
                 )
 
                 if shares_change is None:
@@ -238,10 +261,14 @@ class Account():
                         trade.set_close( order )
 
 
-                # edit below based on trades and orders?
+                # edit below based on trades and orders? 
+                # tbd no cash check
                 if order.is_market:
-                    self.shares[t] += shares_change
-                    self.cash -= shares_change * curr_close
+                    if (shares_change * curr_close) <= self.cash:
+                        self.shares[t] += shares_change
+                        self.cash -= shares_change * curr_close
+                    else:
+                        raise Exception("Not enough cash!")
 
                 """
                     Handle commission
@@ -267,6 +294,8 @@ class Account():
         wallet_pct = round((wallet_diff / wallet_start ) *100., 1)
         print(f"    WALLET: ${wallet_start} -> ${wallet_end} ({wallet_sign}${wallet_diff}) {wallet_sign}{wallet_pct}%")
         
+        print(f"    MAX DROWDOWN: {self.observers.iloc[-1]['max_drowdown_pct']}%")
+
         sp500_benchmark = round(self.benchmarks.iloc[-1]['SP500'] * 100.-100.,1) if self.SP500 is not None else None
         avg_stock_benchmark = round(self.benchmarks[[c for c in self.benchmarks.columns if c!='SP500']]\
                                 .iloc[-1].mean() * 100. - 100. ,1)

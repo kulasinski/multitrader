@@ -34,7 +34,7 @@ class Order():
         # if self.limit == 0 or self.on_create_price == 0:
         #     raise Exception("Got an order with 0 price!")
 
-        self.log(f"opening {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} order at ${self.on_create_price if self.is_market else self.limit} ({self.ticker})")
+        self.log(f"opening {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} ({self.shares}) order at ${self.on_create_price if self.is_market else self.limit} ({self.ticker})")
 
         if self.is_market:
             self.execute(self.on_create_price, self.on_create_date)
@@ -48,7 +48,7 @@ class Order():
         self.executed_price = price
         self.executed_date  = date
         self.is_valid = False
-        self.log(f"closing {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} order at ${self.executed_price} ({self.ticker})")
+        self.log(f"closing {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} ({self.shares}) order at ${self.executed_price} ({self.ticker})")
 
     def check_validity(self, date):
         if self.is_valid and self.valid_until is not None:
@@ -82,7 +82,7 @@ class Trade():
                 self.is_open = False
                 self.gain = round(self.close_order.executed_price - self.open_order.executed_price, 2)
                 self.gain_pct = round(self.gain / self.open_order.executed_price * 100. , 1)
-                self.log(f'gain on position: ${self.open_order.executed_price} -> ${self.close_order.executed_price} (${self.gain}) {self.gain_pct}%')
+                self.log(f'gain on position: ${self.open_order.executed_price} -> ${self.close_order.executed_price} (total ${-self.close_order.shares*self.gain}) {self.gain_pct}%')
             else:
                 self.log('warning: sell order is not yet executed!')
         else:
