@@ -2,6 +2,7 @@ from multitrader.indicators import Indicators
 from multitrader.order import Order, Trade
 
 import pandas as pd
+import numpy as np
 
 class Commission():
     
@@ -14,9 +15,9 @@ class Commission():
         self.pct = pct 
         self.buy_only = buy_only
         
-    def get(self, shares, price, is_buy):
-        
-        if is_buy:
+    def get(self, shares, price):
+        shares = np.abs(shares)
+        if shares > 0:
             return max(self.min_cash, shares*price*self.pct/100.)
         else:
             if self.buy_only:
@@ -37,7 +38,8 @@ class Account():
 
         self.verbose = verbose
         self.strategy = None
-        self.datadict = None        
+        self.datadict = None     
+        self.SP500 = None   
         
     def set_cash(self, cash):
         self.cash = float(cash)
@@ -86,6 +88,19 @@ class Account():
             tickers = list(self.datadict.keys())
             
         """
+            Initializing observers, benchmarks, and commission
+        """
+
+        self.observers = None
+        self.benchmarks = None
+        self.commission_total = 0
+
+        """
+            Init trades
+        """
+        self.trades = []
+
+        """
             Preparing raw data
         """
             
@@ -120,13 +135,46 @@ class Account():
             self.indicators[t] = pd.DataFrame(i_dict)
         
         return tickers
-            
-    def benchmarking(self):
-        pass
+
+    def set_SP500(self, fpath, index='Date'):
+        self.SP500 = df = pd.read_csv(fpath) \
+                .sort_values('Date') \
+                .set_index(index, drop=True)
+
+    def do_benchmark(self,date,tickers,start_date):
+        values = {
+            'SP500': None if self.SP500 is None else self.SP500.loc[date].Close / self.SP500.loc[start_date].Close
+        }
+
+        for t in tickers:
+            pct = self.data[t].loc[date].Close / self.data[t].loc[start_date].Close
+            values[t] = [pct]
+
+        if self.benchmarks is None:
+            self.benchmarks = pd.DataFrame(values, index=[date])
+        else:
+            self.benchmarks = self.benchmarks.append(pd.DataFrame(values, index=[date]))
     
-    def observers(self):
-        pass
-    
+    def observe(self,date,tickers):
+        values = {
+            "cash": [self.cash]
+        }
+
+        in_stocks = 0
+        for t in tickers:
+            values[f"#{t}"] = [self.shares[t]]
+            values[f"${t}"] = [self.shares[t] * round(self.data[t].loc[date].Close, 2)]
+
+            in_stocks += values[f"${t}"][0]
+            values['in_stocks'] = [in_stocks]
+
+        values['wallet'] = [self.cash + in_stocks]
+
+        if self.observers is None:
+            self.observers = pd.DataFrame(values, index=[date])
+        else:
+            self.observers = self.observers.append(pd.DataFrame(values, index=[date]))
+
     def order_mngmt(self):
         pass
     
@@ -137,25 +185,23 @@ class Account():
     def run(self, tickers=None, start=None, end=None):
         tickers = self.warm_up(tickers, start, end)
         
+        """
+            Init dates list
+        """
         # TBD tu trzeba polaczayc indexy zeby miec max zasieg
         dates = list(self.data['AAPL'].index)
         start = min(dates)
         end = max(dates)
         self.duration = len(dates)
 
-        self.trades = []
+        
         
         for date in dates:
             self.log(f"=== {date} ===")
-            # TBD: store it! as well as cash and other observers...
-            wallet = self.cash + sum([self.shares[t]*self.data[t].loc[date].Close for t in tickers])              
-            # self.log(f"    cash: ${round(self.cash,2)} wallet: {round(wallet,2)}")
-            
+                        
             for t in tickers:
                 
                 curr_close = round(self.data[t].loc[date].Close,2)
-
-                # self.log(f"    {t} price: {curr_close} shares: {self.shares[t]}")
                 
                 shares_change, limit, quality = self.strategy.check(
                     self.data[t].loc[:date], 
@@ -192,24 +238,42 @@ class Account():
                         trade.set_close( order )
 
 
-                # edit below based on trades and orders
-                    
-                self.shares[t] += shares_change
-                self.cash -= shares_change * curr_close
+                # edit below based on trades and orders?
+                if order.is_market:
+                    self.shares[t] += shares_change
+                    self.cash -= shares_change * curr_close
+
+                """
+                    Handle commission
+                """
+                curr_commission = self.commission.get(shares_change, curr_close)
+                self.cash -= curr_commission
+                self.commission_total += curr_commission
+
+            self.observe(date,tickers)
+            self.do_benchmark(date,tickers,start)
+            self.log(f"    cash: ${round(self.cash,2)} wallet: {round(self.observers.loc[date]['wallet'],2)}")
         
         self.log("===    END     ===\n")
         
     def summary(self):
 
         print("=== SUMMARY ===")
-        print(f"    DURATION: {self.duration} trading days")
-        wallet_start = round(1, 1)
-        wallet_end   = round(2, 1)
-        wallet_diff  = wallet_end - wallet_start
+        
+        wallet_start = self.observers.iloc[0]['wallet']
+        wallet_end   = self.observers.iloc[-1]['wallet']
+        wallet_diff  = round(wallet_end - wallet_start, 2)
         wallet_sign  = '+' if wallet_diff>0 else ''
         wallet_pct = round((wallet_diff / wallet_start ) *100., 1)
         print(f"    WALLET: ${wallet_start} -> ${wallet_end} ({wallet_sign}${wallet_diff}) {wallet_sign}{wallet_pct}%")
         
+        sp500_benchmark = round(self.benchmarks.iloc[-1]['SP500'] * 100.-100.,1) if self.SP500 is not None else None
+        avg_stock_benchmark = round(self.benchmarks[[c for c in self.benchmarks.columns if c!='SP500']]\
+                                .iloc[-1].mean() * 100. - 100. ,1)
+        print(f"    BENCHMARK: SP500: {sp500_benchmark}% | AVG STOCK {avg_stock_benchmark}%")
+
+        print(f"\n    DURATION: {self.duration} trading days")
+
         pos_trades = len( [ trade for trade in self.trades if trade.gain>0. ] )
         neg_trades = len( [ trade for trade in self.trades if trade.gain<0. ] )
         err_trades = len( [ trade for trade in self.trades if trade.gain is None ] )
@@ -221,7 +285,11 @@ class Account():
         if len(trades_sorted) > 0:
             best_trade = trades_sorted[0]
             worst_trade = trades_sorted[-1]
+            avg_trade = round(sum([x.gain_pct for x in trades_sorted]) / len(trades_sorted), 1)
+            print(f"    AVG TRADE: {avg_trade}%")
             print(f"    BEST TRADE:  ${best_trade.open_order.executed_price} -> ${best_trade.close_order.executed_price} (${best_trade.gain}) {best_trade.gain_pct}% "+\
                 f"| {best_trade.open_order.ticker} {best_trade.open_order.executed_date} -> {best_trade.close_order.executed_date}")
             print(f"    WORST TRADE:  ${worst_trade.open_order.executed_price} -> ${worst_trade.close_order.executed_price} (${worst_trade.gain}) {worst_trade.gain_pct}% "+\
                 f"| {worst_trade.open_order.ticker} {worst_trade.open_order.executed_date} -> {worst_trade.close_order.executed_date}")
+
+        print(f"    COMMISSION TOTAL: ${round(self.commission_total,2)}")
