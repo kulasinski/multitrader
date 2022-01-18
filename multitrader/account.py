@@ -137,7 +137,7 @@ class Account():
             for i in self.strategy.get_indicators(): 
                 i_dict[i] = I.get(i)
                 
-            self.indicators[t] = pd.DataFrame(i_dict)
+            self.indicators[t] = pd.DataFrame(i_dict, index=self.data[t].index)
         
         return tickers
 
@@ -210,7 +210,7 @@ class Account():
             self.log(f"=== {date} ===")
                         
             for t in tickers:
-                
+                # self.log(f"{self.indicators[t].RSI.loc[date]}")    
                 curr_close = round(self.data[t].loc[date].Close,2)
 
                 """
@@ -230,6 +230,7 @@ class Account():
                     self.indicators[t].loc[:date], 
                     self.shares[t],
                     cash_avail,
+                    t,
                 )
 
                 if shares_change is None:

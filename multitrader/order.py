@@ -82,7 +82,7 @@ class Trade():
                 self.is_open = False
                 self.gain = round(self.close_order.executed_price - self.open_order.executed_price, 2)
                 self.gain_pct = round(self.gain / self.open_order.executed_price * 100. , 1)
-                self.log(f'gain on position: ${self.open_order.executed_price} -> ${self.close_order.executed_price} (total ${-self.close_order.shares*self.gain}) {self.gain_pct}%')
+                self.log(f"gain on position: ${self.open_order.executed_price} -> ${self.close_order.executed_price} (total ${-round(self.close_order.shares*self.gain,2)}) {self.gain_pct}%")
             else:
                 self.log('warning: sell order is not yet executed!')
         else:
