@@ -71,7 +71,7 @@ class MA20Strat(Strategy):
 class RSIStrat(Strategy):
     
     def __init__(self, 
-                name='RSTStrat',
+                name='RSIStrat',
                 params = {} 
                 ):
         self.name = name
@@ -97,6 +97,47 @@ class RSIStrat(Strategy):
             # BUY
             shares_change = np.floor(cash_avail/curr_close)
         elif curr_RSI>60 and curr_shares>0: # check if sell
+            # SELL
+            shares_change = -curr_shares
+        
+        return shares_change, limit, quality
+
+class SLBStrat(Strategy):
+    """
+        Based solely on the SLB indicator
+    """
+    
+    def __init__(self, 
+                name='SLBStrat',
+                params = {} 
+                ):
+        self.name = name
+        self.indicators = ['SLB']
+        self.params = params
+    
+    def check(self, data, indicators, curr_shares, cash_avail, ticker):
+        """
+            Buys if RSI falls below 30, sells if RSI is above 70
+        """
+        shares_change = None
+        limit = None
+        quality = 1.
+        
+        curr_close = data.Close.iloc[-1]
+        curr_SLB = indicators.SLB.iloc[-1]
+        try:
+            last_SLB = indicators.SLB.iloc[-2]
+        except:
+            last_SLB = None
+
+        if curr_SLB is None or last_SLB is None or curr_SLB==np.nan or last_SLB==np.nan:
+            return shares_change, limit, quality
+        
+        print(f"curr SLB for {ticker} is {curr_SLB} and past {last_SLB}") 
+        if curr_shares==0 and curr_SLB>last_SLB and curr_SLB<0: # buy if neg and rising
+            # BUY
+            shares_change = np.floor(cash_avail/curr_close)
+        elif curr_shares>0 and curr_SLB<last_SLB and curr_SLB>0: # sell if pos and falling
             # SELL
             shares_change = -curr_shares
         

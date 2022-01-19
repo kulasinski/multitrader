@@ -1,18 +1,18 @@
 from multitrader.account import Account, Commission
-from multitrader.strategies import MA20Strat, RSIStrat
+from multitrader.strategies import *
 from multitrader.tools import load_ticker
 
 ### PARAMS ###
 
 tickers = [
     'AAPL',
-    'MSFT',
+    'TSLA',
 ]
 INITIAL_CASH = 1000
 CASH_PER_TRADE = 0. # proportionally
-START_DATE = '2020-02-26'
+START_DATE = '2020-08-01'
 END_DATE = '2020-10-15'
-STRATEGY = RSIStrat() #MA20Strat()
+STRATEGY = SLBStrat()
 
 STOCKS_DIR = '/home/charlie/algo/stocks'
 SP500_PATH = STOCKS_DIR+'/SP500.csv'

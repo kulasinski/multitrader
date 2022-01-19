@@ -91,3 +91,9 @@ class Trade():
     def log(self, msg):
         if True:
             print("    "+msg)
+
+    def is_pos(self):
+        # print("gain!!!!",self.gain) 
+        if self.gain is None:
+            return None
+        return self.gain>0

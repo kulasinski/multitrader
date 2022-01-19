@@ -304,12 +304,12 @@ class Account():
 
         print(f"\n    DURATION: {self.duration} trading days")
 
-        pos_trades = len( [ trade for trade in self.trades if trade.gain>0. ] )
-        neg_trades = len( [ trade for trade in self.trades if trade.gain<0. ] )
-        err_trades = len( [ trade for trade in self.trades if trade.gain is None ] )
+        pos_trades = len( [ trade for trade in self.trades if trade.is_pos()==True ] )
+        neg_trades = len( [ trade for trade in self.trades if trade.is_pos()==False ] )
+        err_trades = len( [ trade for trade in self.trades if trade.is_pos() is None ] )
         tot_trades = pos_trades + neg_trades + err_trades
-        assert len(self.trades)==tot_trades 
         print(f"    TRADES: POS {pos_trades} + NEG {neg_trades} + ERR {err_trades} = TOT {tot_trades}")
+        assert len(self.trades)==tot_trades
 
         trades_sorted = sorted([trade for trade in self.trades if trade.is_open == False], key=lambda x: x.gain)   
         if len(trades_sorted) > 0:
