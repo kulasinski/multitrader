@@ -3,6 +3,10 @@ from multitrader.order import Order, Trade
 
 import pandas as pd
 import numpy as np
+import matplotlib
+from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime
 
 class Commission():
     
@@ -42,6 +46,8 @@ class Account():
         self.strategy = None
         self.datadict = None     
         self.SP500 = None   
+
+        matplotlib.use('Agg')
         
     def set_cash(self, cash):
         self.cash = float(cash)
@@ -174,11 +180,13 @@ class Account():
             values['in_stocks'] = [in_stocks]
 
         values['wallet'] = [self.cash + in_stocks]
+        values['shares'] = [sum([self.shares[t] for t in tickers])]
+        values['fill_rate'] = [1. - self.cash / (self.cash + in_stocks)]
 
         if self.observers is None:
-            values['max_drowdown_pct'] = 0.
+            values['max_drawdown_pct'] = [0.]
         else:
-            values['max_drowdown_pct'] = round(self.observers['wallet'].min() / self.observers['wallet'].max() *100. - 100., 1)
+            values['max_drawdown_pct'] = [round(self.observers['wallet'].min() / self.observers['wallet'].max() *100. - 100., 1)]
 
         if self.observers is None:
             self.observers = pd.DataFrame(values, index=[date])
@@ -198,8 +206,8 @@ class Account():
         """
             Init dates list
         """
-        # TBD tu trzeba polaczayc indexy zeby miec max zasieg
-        dates = list(self.data['AAPL'].index)
+        indexes = [list(self.data[t].index) for t in tickers]
+        dates = sorted(list(set([a for b in indexes for a in b])))
         start = min(dates)
         end = max(dates)
         self.duration = len(dates)
@@ -295,7 +303,8 @@ class Account():
         wallet_pct = round((wallet_diff / wallet_start ) *100., 1)
         print(f"    WALLET: ${wallet_start} -> ${wallet_end} ({wallet_sign}${wallet_diff}) {wallet_sign}{wallet_pct}%")
         
-        print(f"    MAX DROWDOWN: {self.observers.iloc[-1]['max_drowdown_pct']}%")
+        print(f"    MAX DROWDOWN: {self.observers.iloc[-1]['max_drawdown_pct']}%")
+        print(f"    AVG FILLRATE: {round(self.observers['fill_rate'].mean()*100.,0)}%")
 
         sp500_benchmark = round(self.benchmarks.iloc[-1]['SP500'] * 100.-100.,1) if self.SP500 is not None else None
         avg_stock_benchmark = round(self.benchmarks[[c for c in self.benchmarks.columns if c!='SP500']]\
@@ -323,3 +332,44 @@ class Account():
                 f"| {worst_trade.open_order.ticker} {worst_trade.open_order.executed_date} -> {worst_trade.close_order.executed_date}")
 
         print(f"    COMMISSION TOTAL: ${round(self.commission_total,2)}")
+
+    def plot(self, output):
+
+        dates = [datetime.strptime(d, '%Y-%m-%d') for d in self.observers.wallet.index]
+     
+        fig, axs = plt.subplots(5, 1, figsize=(6.4, 7), constrained_layout=True, sharex=True)
+
+        for ax in axs:
+            ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=(1))) # every year
+            ax.xaxis.set_minor_locator(mdates.MonthLocator()) # every month
+            ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+            ax.grid(True, which='minor', axis='x')
+
+        ax=axs[0]
+        ax.plot(dates, self.observers.wallet)
+        ax.set_title('Wallet', loc='left', y=0.85, x=0.02, fontsize='medium')
+
+        ax=axs[1]
+        ax.plot(dates, self.observers.cash)
+        ax.set_title('Cash', loc='left', y=0.85, x=0.02, fontsize='medium')
+
+        ax=axs[2]
+        ax.plot(dates, self.observers.shares)
+        ax.set_title('Shares', loc='left', y=0.85, x=0.02, fontsize='medium')
+
+        ax=axs[3]
+        ax.plot(dates, self.observers.max_drawdown_pct)
+        ax.set_title('Drawdown', loc='left', y=0.85, x=0.02, fontsize='medium')
+
+        ax=axs[4]
+        ax.plot(dates, self.observers.fill_rate)
+        ax.set_title('FillRate', loc='left', y=0.85, x=0.02, fontsize='medium')
+
+        # # Text in the x axis will be displayed in 'YYYY-mm' format.
+        # ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%b'))
+        # # Rotates and right-aligns the x labels so they don't crowd each other.
+        # for label in ax.get_xticklabels(which='major'):
+        #     label.set(rotation=30, horizontalalignment='right')
+
+
+        fig.savefig(output)

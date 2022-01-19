@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 from multitrader.account import Account, Commission
 from multitrader.strategies import *
 from multitrader.tools import load_ticker
@@ -6,16 +9,17 @@ from multitrader.tools import load_ticker
 
 tickers = [
     'AAPL',
-    'TSLA',
+    'MSFT',
 ]
 INITIAL_CASH = 1000
 CASH_PER_TRADE = 0. # proportionally
-START_DATE = '2020-08-01'
-END_DATE = '2020-10-15'
-STRATEGY = SLBStrat()
+START_DATE = '2020-01-01'
+END_DATE = '2020-12-31'
+STRATEGY = RSIStrat()
 
 STOCKS_DIR = '/home/charlie/algo/stocks'
 SP500_PATH = STOCKS_DIR+'/SP500.csv'
+PLOT_OUTPUT = '/mnt/c/Users/kulas/Desktop/plot.png'
 
 ##############
 
@@ -36,3 +40,5 @@ account.run(
     )
 
 account.summary()
+
+account.plot(PLOT_OUTPUT)
