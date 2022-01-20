@@ -38,7 +38,7 @@ class MA20Strat(Strategy):
         self.indicators = ['MA20']
         self.params = params
     
-    def check(self, data, indicators, curr_shares, cash_avail, ticker):
+    def check(self, data, indicators, curr_shares, cash_avail, ticker, buy_price=None):
         """
             Takes in the ochl data, indicators, current amount of shares
             Returns:
@@ -78,7 +78,7 @@ class RSIStrat(Strategy):
         self.indicators = ['RSI']
         self.params = params
     
-    def check(self, data, indicators, curr_shares, cash_avail, ticker):
+    def check(self, data, indicators, curr_shares, cash_avail, ticker, buy_price=None):
         """
             Buys if RSI falls below 30, sells if RSI is above 70
         """
@@ -92,7 +92,7 @@ class RSIStrat(Strategy):
         if curr_RSI is None:
             return shares_change, limit, quality
         
-        print(f"curr RSI for {ticker} is {curr_RSI}")
+        # print(f"curr RSI for {ticker} is {curr_RSI}")
         if curr_RSI<40 and curr_shares==0: # check if buy
             # BUY
             shares_change = np.floor(cash_avail/curr_close)
@@ -115,7 +115,7 @@ class SLBStrat(Strategy):
         self.indicators = ['SLB']
         self.params = params
     
-    def check(self, data, indicators, curr_shares, cash_avail, ticker):
+    def check(self, data, indicators, curr_shares, cash_avail, ticker, buy_price=None):
         """
             Buys if RSI falls below 30, sells if RSI is above 70
         """

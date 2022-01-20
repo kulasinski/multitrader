@@ -34,7 +34,7 @@ class Order():
         # if self.limit == 0 or self.on_create_price == 0:
         #     raise Exception("Got an order with 0 price!")
 
-        self.log(f"opening {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} ({self.shares}) order at ${self.on_create_price if self.is_market else self.limit} ({self.ticker})")
+        self.log(f"[{on_create_date}] opening {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} ({self.shares}) order at ${self.on_create_price if self.is_market else self.limit} ({self.ticker})")
 
         if self.is_market:
             self.execute(self.on_create_price, self.on_create_date)
@@ -48,7 +48,7 @@ class Order():
         self.executed_price = price
         self.executed_date  = date
         self.is_valid = False
-        self.log(f"closing {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} ({self.shares}) order at ${self.executed_price} ({self.ticker})")
+        self.log(f"[{date}] closing {'market' if self.is_market else 'limit'} {'BUY' if self.is_buy else 'SELL'} ({self.shares}) order at ${self.executed_price} ({self.ticker})")
 
     def check_validity(self, date):
         if self.is_valid and self.valid_until is not None:
@@ -71,12 +71,14 @@ class Trade():
         self.gain = None
         self.gain_pct = None
 
+        self.ticker = open_order.ticker
+
     def set_close(self, close_order):
         self.close_order = close_order
         self.try_close() # makes sense on market orders
 
     def try_close(self):
-        self.log('trying to close the trade...')
+        self.log(f'trying to close the trade ({self.ticker})...')
         if self.close_order is not None:
             if self.close_order.executed_date is not None and self.open_order.executed_date is not None:
                 self.is_open = False

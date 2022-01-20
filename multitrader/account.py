@@ -128,6 +128,12 @@ class Account():
             self.data[t] = d.set_index('Date')
             
             self.shares[t] = 0
+
+        """
+            Resetting SP500 dates
+        """
+        if self.SP500 is not None:
+            self.SP500 = self.SP500.loc[start:end]
             
         """
             Calculating required indicators (by strategy)
@@ -215,7 +221,7 @@ class Account():
         
         
         for date in dates:
-            self.log(f"=== {date} ===")
+            # self.log(f"=== {date} ===")
                         
             for t in tickers:
                 # self.log(f"{self.indicators[t].RSI.loc[date]}")    
@@ -239,6 +245,7 @@ class Account():
                     self.shares[t],
                     cash_avail,
                     t,
+                    buy_price=None,
                 )
 
                 if shares_change is None:
@@ -288,7 +295,7 @@ class Account():
 
             self.observe(date,tickers)
             self.do_benchmark(date,tickers,start)
-            self.log(f"    cash: ${round(self.cash,2)} wallet: {round(self.observers.loc[date]['wallet'],2)}")
+            # self.log(f"    cash: ${round(self.cash,2)} wallet: {round(self.observers.loc[date]['wallet'],2)}")
         
         self.log("===    END     ===\n")
         
@@ -333,43 +340,126 @@ class Account():
 
         print(f"    COMMISSION TOTAL: ${round(self.commission_total,2)}")
 
-    def plot(self, output):
+    def plot(self, output, dpi=300):
 
         dates = [datetime.strptime(d, '%Y-%m-%d') for d in self.observers.wallet.index]
      
-        fig, axs = plt.subplots(5, 1, figsize=(6.4, 7), constrained_layout=True, sharex=True)
+        ticker_figs = len(self.data) * (1 + len(self.strategy.indicators))
+        fig, axs = plt.subplots(5+ticker_figs, 1, figsize=(7., 7.+ticker_figs*1.), constrained_layout=True, sharex=True)
+
+        fig.suptitle(self.strategy.name)
 
         for ax in axs:
-            ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=(1))) # every year
+            # ax.xaxis.set_major_locator(mdates.MonthLocator(bymonth=(1))) # every year
             ax.xaxis.set_minor_locator(mdates.MonthLocator()) # every month
             ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
             ax.grid(True, which='minor', axis='x')
 
         ax=axs[0]
-        ax.plot(dates, self.observers.wallet)
-        ax.set_title('Wallet', loc='left', y=0.85, x=0.02, fontsize='medium')
+        ax.plot(dates, self.observers.wallet, label='wallet')
+        if self.SP500 is not None:
+                benchmark = self.SP500.Close/self.SP500.Close.iloc[0]*self.observers.wallet.iloc[0]
+                ax.plot(dates, benchmark, color='g', label='SP500')
+        ax.legend()
+        ax.set_ylabel('Wallet', fontsize='medium')
 
         ax=axs[1]
         ax.plot(dates, self.observers.cash)
-        ax.set_title('Cash', loc='left', y=0.85, x=0.02, fontsize='medium')
+        ax.set_ylabel('Cash', fontsize='medium')
 
         ax=axs[2]
         ax.plot(dates, self.observers.shares)
-        ax.set_title('Shares', loc='left', y=0.85, x=0.02, fontsize='medium')
+        ax.set_ylabel('Shares', fontsize='medium')
 
         ax=axs[3]
-        ax.plot(dates, self.observers.max_drawdown_pct)
-        ax.set_title('Drawdown', loc='left', y=0.85, x=0.02, fontsize='medium')
+        ax.plot(dates, self.observers.max_drawdown_pct, color='r')
+        ax.set_ylabel('Drawdown %', fontsize='medium')
 
         ax=axs[4]
-        ax.plot(dates, self.observers.fill_rate)
-        ax.set_title('FillRate', loc='left', y=0.85, x=0.02, fontsize='medium')
+        ax.plot(dates, self.observers.fill_rate*100.)
+        ax.set_ylabel('FillRate %', fontsize='medium')
 
-        # # Text in the x axis will be displayed in 'YYYY-mm' format.
-        # ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%b'))
-        # # Rotates and right-aligns the x labels so they don't crowd each other.
-        # for label in ax.get_xticklabels(which='major'):
-        #     label.set(rotation=30, horizontalalignment='right')
+        curr_subplot = 5
+
+        """
+            for each ticker...
+        """
+        # width of candlestick elements
+        width = .8
+        width2 = .1
+        # colors to use
+        col1 = 'blue'
+        col2 = 'black'
+        
+        for t in self.data.keys():
+            ax=axs[curr_subplot]
+            prices = self.data[t]
+            prices['Dates'] = dates
+            prices.set_index('Dates', inplace=True)
+
+            """
+                Plot line
+            """
+            ax.plot(dates, self.data[t].Close, color='k', lw=0.2)
+
+            """
+                Plot candlesticks
+            """
+            up = prices[prices.Close>=prices.Open]
+            down = prices[prices.Close<prices.Open]
+            # plot up prices
+            ax.bar(up.index,up.Close-up.Open,width,bottom=up.Open,color=col1)
+            ax.bar(up.index,up.High-up.Close,width2,bottom=up.Close,color=col1)
+            ax.bar(up.index,up.Low-up.Open,width2,bottom=up.Open,color=col1)
+            # plot down prices
+            ax.bar(down.index,down.Close-down.Open,width,bottom=down.Open,color=col2)
+            ax.bar(down.index,down.High-down.Open,width2,bottom=down.Open,color=col2)
+            ax.bar(down.index,down.Low-down.Close,width2,bottom=down.Close,color=col2)
+            
+            """
+                Plot orders
+            """
+            for trade in self.trades:
+                if trade.ticker!=t:
+                    continue
+                if trade.open_order.executed_date is not None:
+                    ax.plot(datetime.strptime(trade.open_order.executed_date, '%Y-%m-%d'),
+                            trade.open_order.executed_price,
+                            'g^',
+                            alpha=0.5)
+                if trade.close_order is not None:
+                    if trade.close_order.executed_date is not None:
+                        ax.plot(datetime.strptime(trade.close_order.executed_date, '%Y-%m-%d'),
+                                trade.close_order.executed_price,
+                                'rv',
+                                alpha=0.5)
+
+            """
+                Plot benchmark
+            """
+            if self.SP500 is not None:
+                benchmark = self.SP500.Close/self.SP500.Close.iloc[0]*self.data[t].Close.iloc[0]
+                ax.plot(dates, benchmark, color='g', label='SP500')
+            ax.set_ylabel(f'$ {t}', fontsize='medium')
+            ax.legend()
+
+            curr_subplot += 1
+
+            """
+                Plot indicators
+            """
+            for ind in self.strategy.indicators:
+                ax=axs[curr_subplot]
+                ax.plot(dates, self.indicators[t][ind])
+                ax.set_ylabel(f'{ind}-{t}', fontsize='medium')
+                curr_subplot += 1
+
+        fig.savefig(output, dpi=dpi)
+
+        
+
+#define up and down prices
 
 
-        fig.savefig(output)
+
+
