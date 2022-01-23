@@ -23,6 +23,8 @@ class Indicators():
             return inTrend
         elif i=='ADX':
             return self.ADX()
+        elif i=='VWI':
+            return self.VWI()
         elif i=='BBu':
             BBu, _ = BollingerBands()
         elif i=='BBl':
@@ -87,6 +89,16 @@ class Indicators():
         DX  = ( (pDI.abs()-mDI.abs()) / (pDI.abs()+mDI.abs()) )*100.
         ADX = DX.rolling(period).mean()
         return ADX
+
+    def VWI(self, period=14):
+        """
+            Volume-Weighted Index
+        """
+        VDI = (self.data.Volume * (self.data.Close - self.data.Open)).rolling(period).mean()
+        ATR = self.ATR()
+        V   = self.data.Volume.rolling(period).mean()
+        VWI = 100. * VDI / ATR / V
+        return VWI.rolling(period).mean()
 
     def BollingerBands(self, length = 20, mult = 2.0):
         """
