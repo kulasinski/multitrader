@@ -190,9 +190,11 @@ class Account():
         values['fill_rate'] = [1. - self.cash / (self.cash + in_stocks)]
 
         if self.observers is None:
+            values['drawdown_pct'] = [0.]
             values['max_drawdown_pct'] = [0.]
         else:
-            values['max_drawdown_pct'] = [round(self.observers['wallet'].min() / self.observers['wallet'].max() *100. - 100., 1)]
+            values['drawdown_pct'] = [ round(values['wallet'][0] / self.observers['wallet'].max() *100. - 100., 1) ]
+            values['max_drawdown_pct'] = self.observers['drawdown_pct'].min()
 
         if self.observers is None:
             self.observers = pd.DataFrame(values, index=[date])
@@ -329,8 +331,8 @@ class Account():
 
         trades_sorted = sorted([trade for trade in self.trades if trade.is_open == False], key=lambda x: x.gain)   
         if len(trades_sorted) > 0:
-            best_trade = trades_sorted[0]
-            worst_trade = trades_sorted[-1]
+            best_trade = trades_sorted[-1]
+            worst_trade = trades_sorted[0]
             avg_trade = round(sum([x.gain_pct for x in trades_sorted]) / len(trades_sorted), 1)
             print(f"    AVG TRADE: {avg_trade}%")
             print(f"    BEST TRADE:  ${best_trade.open_order.executed_price} -> ${best_trade.close_order.executed_price} (${best_trade.gain}) {best_trade.gain_pct}% "+\
