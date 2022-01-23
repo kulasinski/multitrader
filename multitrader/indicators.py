@@ -21,6 +21,8 @@ class Indicators():
         elif i=='SLBtrend':
             val, inTrend = self.SqueezeLazyBear()
             return inTrend
+        elif i=='ADX':
+            return self.ADX()
         elif i=='BBu':
             BBu, _ = BollingerBands()
         elif i=='BBl':
@@ -63,6 +65,28 @@ class Indicators():
         RS = avg_gain / avg_loss
         RSI = np.round(100. - 100. / ( 1. + RS ), 0)
         return RSI
+
+    def ATR(self, period=14):
+        """
+            Average True Range (ATR)
+            https://www.investopedia.com/terms/a/atr.asp
+        """
+        return (self.data.High-self.data.Low).rolling(period).mean()
+
+    def ADX(self, period=14):
+        """
+            Average Directional Movement Index (ADX)
+            https://www.investopedia.com/terms/a/adx.asp
+
+        """
+        pDM = self.data.High.diff().rolling(period).mean()
+        mDM =-self.data.Low.diff().rolling(period).mean()
+        ATR = self.ATR(period=period)
+        pDI = pDM / ATR
+        mDI = mDM / ATR
+        DX  = ( (pDI.abs()-mDI.abs()) / (pDI.abs()+mDI.abs()) )*100.
+        ADX = DX.rolling(period).mean()
+        return ADX
 
     def BollingerBands(self, length = 20, mult = 2.0):
         """
