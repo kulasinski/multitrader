@@ -9,17 +9,17 @@ from multitrader.tools import load_ticker
 
 tickers = [
     'AAPL',
-    # 'MSFT',
+    'MSFT',
 ]
-INITIAL_CASH = 1000
+INITIAL_CASH = 10000
 CASH_PER_TRADE = 0. # proportionally
 START_DATE = '2020-11-01'
 END_DATE = '2021-12-31'
 STRATEGY = SLBStrat()
 
-STOCKS_DIR = '/home/charlie/algo/stocks'
+STOCKS_DIR = 'stocks'
 SP500_PATH = STOCKS_DIR+'/SP500.csv'
-PLOT_OUTPUT = '/mnt/c/Users/kulas/Desktop/plot.png'
+PLOT_OUTPUT = 'plot.png'
 
 ##############
 

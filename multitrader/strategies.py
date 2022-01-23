@@ -105,7 +105,7 @@ class RSIStrat(Strategy):
 class SLBStrat(Strategy):
     """
         Based solely on the SLB indicator
-        https://atas.net/atas-possibilities/squeeze-momentum-indicator/#:~:text=About%20the%20Squeeze%20Momentum%20(SM)%20indicator&text=Squeeze%20Momentum%20shows%20periods%20when,flat%20movement%20and%20vice%20versa.&text=For%20example%2C%20a%20trader%20can,to%20identify%20a%20trend%20day).
+        https://atas.net/atas-possibilities/squeeze-momentum-indicator/
     """
     
     def __init__(self, 
@@ -118,28 +118,37 @@ class SLBStrat(Strategy):
     
     def check(self, data, indicators, curr_shares, cash_avail, ticker, buy_price=None):
         """
-            Buys if RSI falls below 30, sells if RSI is above 70
+            Buys if squeeze off and val>0 and val_diff > 0
+            Sells if squeeze on or val_diff < 0
         """
         shares_change = None
         limit = None
         quality = 1.
         
         curr_close = data.Close.iloc[-1]
-        curr_SLB = indicators.SLBval.iloc[-1]
-        try:
-            last_SLB = indicators.SLBval.iloc[-2]
-        except:
-            last_SLB = None
+        curr_val   = indicators.SLBval.iloc[-1]
+        val_diff   = indicators.SLBval.diff()
+        curr_val_diff = val_diff[-1]
+        squeeze_off   = indicators.SLBtrend.iloc[-1]
+        squeeze_on    = not squeeze_off
 
-        if curr_SLB is None or last_SLB is None or curr_SLB==np.nan or last_SLB==np.nan:
+        try:
+            last_val = indicators.SLBval.iloc[-2]
+        except:
+            last_val = None
+
+        if curr_val is None or last_val is None or curr_val==np.nan or last_val==np.nan:
             return shares_change, limit, quality
-        
-        # print(f"curr SLB for {ticker} is {curr_SLB} and past {last_SLB}") 
-        if curr_shares==0 and curr_SLB>last_SLB and curr_SLB<0: # buy if neg and rising
-            # BUY
-            shares_change = np.floor(cash_avail/curr_close)
-        elif curr_shares>0 and curr_SLB<last_SLB and curr_SLB>0: # sell if pos and falling
-            # SELL
-            shares_change = -curr_shares
+
+        if curr_shares==0: # no shares yet, could buy
+            if squeeze_off and curr_val<0 and curr_val_diff>0:
+                # BUY
+                print(f'buying: squeeze_off {squeeze_off} val {curr_val} diff {curr_val_diff}')
+                shares_change = np.floor(cash_avail/curr_close)
+        else: # already has shares, could sell
+            if squeeze_on or curr_val_diff<0:
+                print(f'selling: squeeze on {squeeze_on} val {curr_val} diff {curr_val_diff}')
+                # SELL
+                shares_change = -curr_shares
         
         return shares_change, limit, quality
