@@ -11,7 +11,7 @@ tickers = [
     'AAPL',
     'MSFT',
 ]
-INITIAL_CASH = 10000
+INITIAL_CASH = 1000
 CASH_PER_TRADE = 0. # proportionally
 START_DATE = '2020-11-01'
 END_DATE = '2021-12-31'
