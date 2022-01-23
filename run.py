@@ -42,3 +42,5 @@ account.run(
 account.summary()
 
 account.plot(PLOT_OUTPUT)
+
+account.output(fname='log.csv')

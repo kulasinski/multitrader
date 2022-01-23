@@ -97,6 +97,7 @@ class Account():
             
         if tickers is None:
             tickers = list(self.datadict.keys())
+            self.tickers = tickers
             
         """
             Initializing observers, benchmarks, and commission
@@ -216,6 +217,7 @@ class Account():
         """
         indexes = [list(self.data[t].index) for t in tickers]
         dates = sorted(list(set([a for b in indexes for a in b])))
+        self.dates = dates
         start = min(dates)
         end = max(dates)
         self.duration = len(dates)
@@ -301,30 +303,43 @@ class Account():
         
         self.log("===    END     ===\n")
         
-    def summary(self):
-
-        print("=== SUMMARY ===")
-        
+    def calc_wallet_gains(self):
         wallet_start = self.observers.iloc[0]['wallet']
         wallet_end   = self.observers.iloc[-1]['wallet']
         wallet_diff  = round(wallet_end - wallet_start, 2)
         wallet_sign  = '+' if wallet_diff>0 else ''
         wallet_pct = round((wallet_diff / wallet_start ) *100., 1)
+        return wallet_start, wallet_end, wallet_diff, wallet_sign, wallet_pct
+
+    def calc_benchmarks(self):
+        sp500_benchmark = round(self.benchmarks.iloc[-1]['SP500'] * 100.-100.,1) if self.SP500 is not None else None
+        avg_stock_benchmark = round(self.benchmarks[[c for c in self.benchmarks.columns if c!='SP500']]\
+                                .iloc[-1].mean() * 100. - 100. ,1)
+        return sp500_benchmark, avg_stock_benchmark
+
+    def calc_trades(self):
+        pos_trades = len( [ trade for trade in self.trades if trade.is_pos()==True ] )
+        neg_trades = len( [ trade for trade in self.trades if trade.is_pos()==False ] )
+        err_trades = len( [ trade for trade in self.trades if trade.is_pos() is None ] )
+
+        return pos_trades, neg_trades, err_trades
+
+    def summary(self):
+
+        print("=== SUMMARY ===")
+        
+        wallet_start, wallet_end, wallet_diff, wallet_sign, wallet_pct = self.calc_wallet_gains()
         print(f"    WALLET: ${wallet_start} -> ${wallet_end} ({wallet_sign}${wallet_diff}) {wallet_sign}{wallet_pct}%")
         
         print(f"    MAX DROWDOWN: {self.observers.iloc[-1]['max_drawdown_pct']}%")
         print(f"    AVG FILLRATE: {round(self.observers['fill_rate'].mean()*100.,0)}%")
 
-        sp500_benchmark = round(self.benchmarks.iloc[-1]['SP500'] * 100.-100.,1) if self.SP500 is not None else None
-        avg_stock_benchmark = round(self.benchmarks[[c for c in self.benchmarks.columns if c!='SP500']]\
-                                .iloc[-1].mean() * 100. - 100. ,1)
+        sp500_benchmark, avg_stock_benchmark = self.calc_benchmarks()
         print(f"    BENCHMARK: SP500: {sp500_benchmark}% | AVG STOCK {avg_stock_benchmark}%")
 
         print(f"\n    DURATION: {self.duration} trading days")
 
-        pos_trades = len( [ trade for trade in self.trades if trade.is_pos()==True ] )
-        neg_trades = len( [ trade for trade in self.trades if trade.is_pos()==False ] )
-        err_trades = len( [ trade for trade in self.trades if trade.is_pos() is None ] )
+        pos_trades, neg_trades, err_trades = self.calc_trades()
         tot_trades = pos_trades + neg_trades + err_trades
         print(f"    TRADES: POS {pos_trades} + NEG {neg_trades} + ERR {err_trades} = TOT {tot_trades}")
         assert len(self.trades)==tot_trades
@@ -477,9 +492,37 @@ class Account():
 
         fig.savefig(output, dpi=dpi)
 
-        
+    def output(self, custom_str='', fname=None, append=True):
 
-#define up and down prices
+        wallet_start, wallet_end, wallet_diff, wallet_sign, wallet_pct = self.calc_wallet_gains()
+        sp500_benchmark, avg_stock_benchmark = self.calc_benchmarks()
+        pos_trades, neg_trades, err_trades = self.calc_trades()
+
+        out_dict = {
+            'DATE_RUN': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'DATE_START': self.dates[0],
+            'DATE_END': self.dates[-1],
+            'WALLET_START': wallet_start,
+            'WALLET_END': wallet_end,
+            'WALLET_GAIN': wallet_pct,
+            'MAX_DROWDOWN': self.observers.iloc[-1]['max_drawdown_pct'],
+            'SP500': sp500_benchmark,
+            'STOCK_GAIN': avg_stock_benchmark,
+            'TRADES': pos_trades+neg_trades+err_trades,
+            'TRADES_POS': pos_trades,
+            'TRADES_NEG': neg_trades,
+            'TICKERS': ' '.join(self.tickers),
+            'STRATEGY': self.strategy.name,
+            'COMMISIONS': round(self.commission_total,2),
+            'CUSTOM': custom_str,
+        }
+
+        if fname is not None:
+            with open(fname, 'a' if append else 'w') as f:
+                if not append:
+                    f.write(','.join(out_dict.keys()))
+                f.write( '\n' + ','.join( [str(v) for v in out_dict.values()] ) )
+        return out_dict
 
 
 
