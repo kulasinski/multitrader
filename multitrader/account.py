@@ -90,7 +90,7 @@ class Account():
         if self.strategy is None:
             raise Exception("No strategy, exiting.")
         
-        self.log(f"Running strategy: {self.strategy.name}\n")
+        self.log(f"=== Running strategy: {self.strategy.name} ===")
             
         if self.datadict is None or self.datadict==[]:
             raise Exception("No data, exiting.")
@@ -224,7 +224,7 @@ class Account():
             # self.log(f"=== {date} ===")
                         
             for t in tickers:
-                # self.log(f"{self.indicators[t].RSI.loc[date]}")    
+                
                 curr_close = round(self.data[t].loc[date].Close,2)
 
                 """
@@ -450,7 +450,26 @@ class Account():
             """
             for ind in self.strategy.indicators:
                 ax=axs[curr_subplot]
-                ax.plot(dates, self.indicators[t][ind])
+
+                if ind=='SLBval': # draw special case for SLB
+                    val  = self.indicators[t][ind]
+                    val.index = pd.to_datetime(val.index)
+                    diff = val.diff()
+                    up   = diff >  0
+                    down = diff <= 0
+                    pos  = val >  0
+                    neg  = val <= 0
+                    pos_up   = pos & up
+                    pos_down = pos & down
+                    neg_up   = neg & up
+                    neg_down = neg & down
+                    ax.bar(val.index[pos_up], val[pos_up], color='lime')
+                    ax.bar(val.index[pos_down], val[pos_down], color='darkgreen')
+                    ax.bar(val.index[neg_up], val[neg_up], color='yellow')
+                    ax.bar(val.index[neg_down], val[neg_down], color='red')
+                else: # all other indicators
+                    ax.plot(dates, self.indicators[t][ind])
+
                 ax.set_ylabel(f'{ind}-{t}', fontsize='medium')
                 curr_subplot += 1
 

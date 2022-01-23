@@ -11,17 +11,38 @@ class Indicators():
     def get(self, i):
         if i=='MA20':
             return self.MA(period=20)
-        elif i=='MA20':
-            return self.MA(period=20)
+        elif i=='STDEV20':
+            return self.STDEV(period=20)
         elif i=='RSI':
             return self.RSI(period=14)
-        elif i=='SLB':
-            return self.SqueezeLazyBear()
+        elif i=='SLBval':
+            val, inTrend = self.SqueezeLazyBear()
+            return val
+        elif i=='SLBtrend':
+            val, inTrend = self.SqueezeLazyBear()
+            return inTrend
+        elif i=='BBu':
+            BBu, _ = BollingerBands()
+        elif i=='BBl':
+            _, BBl = BollingerBands()
+        elif i=='KCu':
+            KCu, _ = KeltnerChannel()
+        elif i=='KCl':
+            _, KCl = KeltnerChannel()
         else:
             raise Exception("Unknown indicator: ",i)
             
     def MA(self, period):
+        """
+            (Rolling) simple moving average
+        """
         return self.data.Close.rolling(period).mean()
+
+    def STDEV(self, period):
+        """
+            (Rolling) standard deviation
+        """
+        return self.data.Close.rolling(period).std()
 
     def RSI(self, period):
         """
@@ -43,94 +64,87 @@ class Indicators():
         RSI = np.round(100. - 100. / ( 1. + RS ), 0)
         return RSI
 
-    def stdev(self, period):
-        return self.data.Close.rolling(period).std()
-
-    def SqueezeLazyBear(self):
-
+    def BollingerBands(self, length = 20, mult = 2.0):
         """
-            From https://www.tradingview.com/v/4IneGo8h/
-            study(shorttitle = "SQZMOM_LB", title="Squeeze Momentum Indicator [LazyBear]", overlay=false)
-
-            warning: squeeze info not passed in yet
+            https://www.investopedia.com/terms/b/bollingerbands.asp
+            BOLU=MA(TP,n)+m∗σ[TP,n]
+            BOLD=MA(TP,n)−m∗σ[TP,n]
+            where:
+            BOLU=Upper Bollinger Band
+            BOLD=Lower Bollinger Band
+            MA=Moving average
+            TP (typical price)=(High+Low+Close)÷3
+            n=Number of days in smoothing period (typically 20)
+            m=Number of standard deviations (typically 2)
+            σ[TP,n]=Standard Deviation over last n periods of TP
         """
-
-        length = 20 #input(20, title="BB Length")
-        mult = 2.0 #input(2.0,title="BB MultFactor")
-        lengthKC = 20 #input(20, title="KC Length")
-        multKC = 1.5 #input(1.5, title="KC MultFactor")
-
-        useTrueRange = True #input(true, title="Use TrueRange (KC)", type=bool)
-
-        # Calculate BB
-        source = self.data.Close
-        basis = self.MA(length) #sma(source, length)
-        dev = multKC * self.stdev(length)
+        basis = self.MA(length)
+        dev = mult * self.STDEV(length) # ??? czy 1.5 jak KC?
         upperBB = basis + dev
         lowerBB = basis - dev
 
-        # Calculate KC
-        ma = self.MA(length) #sma(source, lengthKC)
-        rng = self.data.High - self.data.Low # range = useTrueRange ? tr : (high - low)
-        rangema = rng.rolling(lengthKC).mean() # sma(range, lengthKC)
-        upperKC = ma + rangema * multKC
-        lowerKC = ma - rangema * multKC
+        return upperBB, lowerBB
 
+    def KeltnerChannel(self, lengthKC = 20, mult = 1.5, useExp = True): # was 1.5
+        """
+            https://www.investopedia.com/terms/k/keltnerchannel.asp
+            Keltner Channel Middle Line=EMA
+            Keltner Channel Upper Band=EMA+2∗ATR
+            Keltner Channel Lower Band=EMA−2∗ATR
+            where:
+            EMA=Exponential moving average (typically over 20 periods)
+            ATR=Average True Range (typically over 10 or 20 periods)
+        """
+        if useExp:
+            ma = self.data.Close.ewm(span=20).mean()
+        else:
+            ma = self.MA(lengthKC)
+        rng = self.data.High - self.data.Low
+        rangema = rng.rolling(lengthKC).mean()
+        upperKC = ma + rangema * mult
+        lowerKC = ma - rangema * mult
+
+        return upperKC, lowerKC
+
+    def SqueezeLazyBear(self, length = 20, multBB = 2.0, multKC = 1.5):
+        """
+            https://atas.net/atas-possibilities/squeeze-momentum-indicator/
+            Squeeze Momentum shows periods when volatility increases or decreases, 
+            in other words, when the market goes from the trend into flat movement and vice versa.
+        """
+
+        # Calculate Bollinger Bands
+        upperBB, lowerBB = self.BollingerBands(length = 20, mult = multBB)
+
+        # Calculate Keltner Channel
+        upperKC, lowerKC = self.KeltnerChannel(lengthKC = length, mult = multKC)
+
+        # Are BB inside KC?
         sqzOn  = (lowerBB > lowerKC) & (upperBB < upperKC)
         sqzOff = (lowerBB < lowerKC) & (upperBB > upperKC)
         noSqz  = (~sqzOn) & (~sqzOff)
-
-        highest = self.data.High.rolling(lengthKC).max()
-        lowest  = self.data.Low.rolling(lengthKC).min()
-
-        correction = ( (highest+lowest)/2. + ma)/2.
+        inTrend = sqzOff.apply(lambda x: 1 if x else 0).astype(int)
 
         """
             calculate slope with 0 intercept, on a rolling basis
         """
-        X = np.arange(lengthKC).reshape(-1,1)
-        y = (source-correction).to_numpy()
+
+        highest = self.data.High.rolling(length).max()
+        lowest  = self.data.Low.rolling(length).min()
+        correction = ( (highest+lowest)/2. + self.MA(length) )/2.
+
+        X = np.arange(length).reshape(-1,1)
+        y = (self.data.Close-correction).to_numpy()
         N = len(y)
 
         val = np.zeros(N)
         for i in range(N):
             try:
-                sub_y = y[i+1-lengthKC:i+1].reshape(-1,1)
+                sub_y = y[i+1-length:i+1].reshape(-1,1)
                 lr = LinearRegression(fit_intercept=False)
                 lr.fit(X,sub_y)
                 val[i] = round(lr.coef_[0][0],3)
             except Exception as e:
                 val[i] = np.nan
 
-        return val #pd.DataFrame({'SLB':val})
-
-        # val = linreg(
-        #     source  -  correction, # avg(
-        #                 # avg(
-        #                 #     highest(high, lengthKC), 
-        #                 #     lowest(low, lengthKC)
-        #                 #     ),
-        #                 # sma(close,lengthKC)
-        #                 # ), 
-        #     lengthKC, # length
-        #     0 # offset
-        # )
-        
-
-        # bcolor = None
-        # if val>0:
-        #     if val > nz:
-        #         bcolor = 'lime' # pos and up
-        #     else:
-        #         bcolor = 'green' # pos and down
-        # else:
-        #     if val < nz:
-        #         bcolor = 'red' # neg and down
-        #     else:
-        #         bcolor = 'maroon' # neg and up
-        # bcolor = iff( val > 0, 
-        #             iff( val > nz(val[1]), lime, green),
-        #             iff( val < nz(val[1]), red, maroon))
-        # scolor = noSqz ? blue : sqzOn ? black : gray 
-        # plot(val, color=bcolor, style=histogram, linewidth=4)
-        # plot(0, color=scolor, style=cross, linewidth=2)
+        return val, inTrend

@@ -105,6 +105,7 @@ class RSIStrat(Strategy):
 class SLBStrat(Strategy):
     """
         Based solely on the SLB indicator
+        https://atas.net/atas-possibilities/squeeze-momentum-indicator/#:~:text=About%20the%20Squeeze%20Momentum%20(SM)%20indicator&text=Squeeze%20Momentum%20shows%20periods%20when,flat%20movement%20and%20vice%20versa.&text=For%20example%2C%20a%20trader%20can,to%20identify%20a%20trend%20day).
     """
     
     def __init__(self, 
@@ -112,7 +113,7 @@ class SLBStrat(Strategy):
                 params = {} 
                 ):
         self.name = name
-        self.indicators = ['SLB']
+        self.indicators = ['SLBval','SLBtrend','STDEV20']
         self.params = params
     
     def check(self, data, indicators, curr_shares, cash_avail, ticker, buy_price=None):
@@ -124,16 +125,16 @@ class SLBStrat(Strategy):
         quality = 1.
         
         curr_close = data.Close.iloc[-1]
-        curr_SLB = indicators.SLB.iloc[-1]
+        curr_SLB = indicators.SLBval.iloc[-1]
         try:
-            last_SLB = indicators.SLB.iloc[-2]
+            last_SLB = indicators.SLBval.iloc[-2]
         except:
             last_SLB = None
 
         if curr_SLB is None or last_SLB is None or curr_SLB==np.nan or last_SLB==np.nan:
             return shares_change, limit, quality
         
-        print(f"curr SLB for {ticker} is {curr_SLB} and past {last_SLB}") 
+        # print(f"curr SLB for {ticker} is {curr_SLB} and past {last_SLB}") 
         if curr_shares==0 and curr_SLB>last_SLB and curr_SLB<0: # buy if neg and rising
             # BUY
             shares_change = np.floor(cash_avail/curr_close)
