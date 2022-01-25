@@ -31,13 +31,17 @@ class Indicators():
         elif i=='VWI':
             return self.VWI()
         elif i=='BBu':
-            BBu, _ = BollingerBands()
+            BBu, _ = self.BollingerBands()
+            return BBu
         elif i=='BBl':
-            _, BBl = BollingerBands()
+            _, BBl = self.BollingerBands()
+            return BBl
         elif i=='KCu':
-            KCu, _ = KeltnerChannel()
+            KCu, _ = self.KeltnerChannel()
+            return KCu
         elif i=='KCl':
-            _, KCl = KeltnerChannel()
+            _, KCl = self.KeltnerChannel()
+            return KCl
         else:
             raise Exception("Unknown indicator: ",i)
             
