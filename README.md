@@ -91,15 +91,25 @@ account.summary()
 ```
 
 `=== SUMMARY ===`
+
     `WALLET: $10000.0 -> $11008.862833000001 (+$1008.86) +10.1%`
+    
     `MAX DROWDOWN: -4.4%`
+    
     `AVG FILLRATE: 16.0%`
+    
     `BENCHMARK: SP500: 44.0% | AVG STOCK 64.7%`
+    
     `DURATION: 294 trading days`
+    
     `TRADES: POS 5 + NEG 0 + ERR 0 = TOT 5`
+    
     `AVG TRADE: 5.9%`
+    
     `BEST TRADE:  $283.52 -> $302.75 ($19.23) 6.8% | MSFT 2021-09-28 -> 2021-10-14`
+    
     `WORST TRADE:  $126.0 -> $130.36 ($4.36) 3.5% | AAPL 2021-02-22 -> 2021-04-08`
+    
     `COMMISSION TOTAL: $120.31`
     
 Finally, plot the timeseries and save the key output variables to file:
