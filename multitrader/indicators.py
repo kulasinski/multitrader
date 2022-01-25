@@ -4,6 +4,9 @@ import sys
 import pandas as pd
 
 class Indicators():
+    """
+        Holds all indicators for a given ticker in one place
+    """
     
     def __init__(self, data):
         self.data = data
@@ -11,6 +14,8 @@ class Indicators():
     def get(self, i):
         if i=='MA20':
             return self.MA(period=20)
+        if i=='MA60':
+            return self.MA(period=60)
         elif i=='STDEV20':
             return self.STDEV(period=20)
         elif i=='RSI':

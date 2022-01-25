@@ -9,6 +9,9 @@ import matplotlib.dates as mdates
 from datetime import datetime
 
 class Commission():
+    """
+        Commission calculator
+    """
     
     def __init__(self, 
                  min_cash=5., 
@@ -20,6 +23,9 @@ class Commission():
         self.buy_only = buy_only
         
     def get(self, shares, price):
+        """
+            Returns commission value based on shares and price
+        """
         shares = np.abs(shares)
         if shares > 0:
             return max(self.min_cash, shares*price*self.pct/100.)
@@ -30,6 +36,9 @@ class Commission():
                 return max(self.min_cash, np.abs(shares)*price*self.pct/100.) 
 
 class Account():
+    """
+        Main running engine
+    """
     
     def __init__(self, 
                  cash=0, 
@@ -155,11 +164,17 @@ class Account():
         return tickers
 
     def set_SP500(self, fpath, index='Date'):
+        """
+            Sets SP500 benchmark
+        """
         self.SP500 = df = pd.read_csv(fpath) \
                 .sort_values('Date') \
                 .set_index(index, drop=True)
 
     def do_benchmark(self,date,tickers,start_date):
+        """
+            Calculates buy-and-hold benchmark for each ticker
+        """
         values = {
             'SP500': None if self.SP500 is None else self.SP500.loc[date].Close / self.SP500.loc[start_date].Close
         }
@@ -174,6 +189,10 @@ class Account():
             self.benchmarks = self.benchmarks.append(pd.DataFrame(values, index=[date]))
     
     def observe(self,date,tickers):
+        """
+            Add various observables as a time series
+        """
+
         values = {
             "cash": [self.cash]
         }
@@ -203,6 +222,9 @@ class Account():
             self.observers = self.observers.append(pd.DataFrame(values, index=[date]))
 
     def order_mngmt(self):
+        """
+            TBD
+        """
         pass
     
     def log(self, msg):
@@ -210,6 +232,10 @@ class Account():
             print(msg)
         
     def run(self, tickers=None, start=None, end=None):
+        """
+            The actual run through the dates, for each ticker
+        """
+
         tickers = self.warm_up(tickers, start, end)
         
         """
@@ -223,7 +249,9 @@ class Account():
         self.duration = len(dates)
 
         
-        
+        """
+            Main loop
+        """
         for date in dates:
             # self.log(f"=== {date} ===")
                         
@@ -304,6 +332,9 @@ class Account():
         self.log("===    END     ===\n")
         
     def calc_wallet_gains(self):
+        """
+            Wallet calculations for summary
+        """
         wallet_start = self.observers.iloc[0]['wallet']
         wallet_end   = self.observers.iloc[-1]['wallet']
         wallet_diff  = round(wallet_end - wallet_start, 2)
@@ -312,12 +343,18 @@ class Account():
         return wallet_start, wallet_end, wallet_diff, wallet_sign, wallet_pct
 
     def calc_benchmarks(self):
+        """
+            Benchmarks calculations for summary
+        """
         sp500_benchmark = round(self.benchmarks.iloc[-1]['SP500'] * 100.-100.,1) if self.SP500 is not None else None
         avg_stock_benchmark = round(self.benchmarks[[c for c in self.benchmarks.columns if c!='SP500']]\
                                 .iloc[-1].mean() * 100. - 100. ,1)
         return sp500_benchmark, avg_stock_benchmark
 
     def calc_trades(self):
+        """
+            Trades calculations for summary
+        """
         pos_trades = len( [ trade for trade in self.trades if trade.is_pos()==True ] )
         neg_trades = len( [ trade for trade in self.trades if trade.is_pos()==False ] )
         err_trades = len( [ trade for trade in self.trades if trade.is_pos() is None ] )
@@ -358,6 +395,9 @@ class Account():
         print(f"    COMMISSION TOTAL: ${round(self.commission_total,2)}")
 
     def plot(self, output, dpi=300):
+        """
+            Plot timeseries to file
+        """
 
         dates = [datetime.strptime(d, '%Y-%m-%d') for d in self.observers.wallet.index]
      
@@ -493,7 +533,9 @@ class Account():
         fig.savefig(output, dpi=dpi)
 
     def output(self, custom_str='', fname=None, append=True):
-
+        """
+            Outputs summary to console and/or a .csv file
+        """
         wallet_start, wallet_end, wallet_diff, wallet_sign, wallet_pct = self.calc_wallet_gains()
         sp500_benchmark, avg_stock_benchmark = self.calc_benchmarks()
         pos_trades, neg_trades, err_trades = self.calc_trades()

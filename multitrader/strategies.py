@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 
 class Strategy():
+    """
+        Parent strategy class
+    """
     
     def __init__(self, 
                 name='Strategy',
@@ -28,6 +31,9 @@ class Strategy():
         return shares_change, limit, quality
         
 class MA20Strat(Strategy):
+    """
+        MovingAverage strategy: buys wheb curr price is lower than MA, sell vice versa
+    """
     
     def __init__(self, 
                 name='MA20Strat',
@@ -68,6 +74,9 @@ class MA20Strat(Strategy):
         return shares_change, limit, quality
 
 class RSIStrat(Strategy):
+    """
+        RSI strategy: buys on low RSI and sells on high RSI
+    """
     
     def __init__(self, 
                 name='RSIStrat',

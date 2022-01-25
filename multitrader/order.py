@@ -1,4 +1,7 @@
 class Order():
+    """
+        Buy/Sell orders with market or limit mode
+    """
     
     def __init__(self, 
             ticker=None,
@@ -60,6 +63,9 @@ class Order():
 
 
 class Trade():
+    """
+        Porte-manteau for buy-sell pairs
+    """
 
     def __init__(self, 
             open_order,
