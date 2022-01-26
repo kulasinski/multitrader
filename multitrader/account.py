@@ -267,19 +267,19 @@ class Account():
                     pass
 
             else: # handle pending SELL order; no need to check is is closed because the trade would be closed
-                print("6 handling a pending sell order")
+                # print("6 handling a pending sell order")
                 if trade.close_order.is_market: # handle a market SELL
                     print("7 handling market SELL")
                     trade.close_order.execute(curr_open, date)
                     trade.try_close()
                     return curr_open, trade.close_order.shares
                 else: # handle a limit SELL
-                    print("8 handling limit sell")
+                    # print("8 handling limit sell")
                     if trade.close_order.limit < curr_high: # when limit price is within the day's range
                         print("9 executing the limit sell, because within the day's range")
                         trade.close_order.execute(trade.close_order.limit, date)
                         trade.try_close()
-                        return trade.close_order.limit, trade.open_order.shares
+                        return trade.close_order.limit, trade.close_order.shares
 
 
             # else: # nothing to do : no new order and no market/limit calls to do
@@ -287,26 +287,26 @@ class Account():
                 # pass
 
         if new_order is not None: # some new order
-            print("11 handling new order")
+            # print("11 handling new order")
             matching_trades = [trade for trade in self.trades if (trade.is_open and trade.open_order.ticker==t)]
             if new_order.is_buy: # new order is BUY
-                print("12 new order is BUY")
+                # print("12 new order is BUY")
                 if len(matching_trades)==0: # no open orders, placing new order in a new trade
-                    print("13 placing new order in a new trade")
+                    # print("13 placing new order in a new trade")
                     trade = Trade( new_order )
                     self.trades.append( trade )
                 else: # placing a new order in an old trade, replacement
-                    print("14 placing a new order in an old trade")
+                    # print("14 placing a new order in an old trade")
                     trade = matching_trades[0]
                     trade.open_order = new_order
                     trade.close_order = None # just to be sure...
 
             else: # new order is SELL
-                print("15 new order is SELL")
+                # print("15 new order is SELL")
                 if len(matching_trades) == 0:
                     self.log(f"    Warning: trying to close a non-existing position ({t})!")
                 else: # replacing an old sell order or installing a new one
-                    print("16 replacing an old sell order or installing a new one")
+                    # print("16 replacing an old sell order or installing a new one")
                     trade = matching_trades[0]
                     trade.close_order = new_order
 
@@ -366,7 +366,6 @@ class Account():
                 )
 
                 if shares_change is not None:
-                    print("creating a new order instance with limit", limit)
                     new_order = Order( # this is for market only, i.e. instant execution!
                         ticker=t,
                         shares=shares_change,
