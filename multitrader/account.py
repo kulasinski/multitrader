@@ -221,11 +221,96 @@ class Account():
         else:
             self.observers = self.observers.append(pd.DataFrame(values, index=[date]))
 
-    def order_mngmt(self):
+    def order_mngmt(self, t, date, new_order):
         """
-            TBD
+            This is the broker heart...
+            If no order, try to close open order
+            Otherwise, replace with new order
         """
-        pass
+        price, shares_change = 0, 0
+        matching_trades = [trade for trade in self.trades if (trade.is_open and trade.open_order.ticker==t)]
+        if len(matching_trades) > 1:
+            raise Exception("Too many matching trades!")
+
+        curr_close = self.data[t].Close.loc[date]
+        curr_open  = self.data[t].Open.loc[date]
+        curr_high  = self.data[t].High.loc[date]
+        curr_low   = self.data[t].Low.loc[date]
+        
+        # print("==>",date,'order mngmt')
+
+        """
+            Management of trades and orders starts here
+        """
+        # if new_order is None: # no new order
+            # print("1 no new order")
+
+        if len(matching_trades)>0: # try to close buy or sell
+            # print(f"2 found {len(matching_trades)} matching trades that could be closed?")
+            trade = matching_trades[0]
+
+            if trade.close_order is None: # there is only BUY order
+
+                if trade.open_order.executed_date is None: # buy order is not closed
+                    if trade.open_order.is_market: # this is market order, buy at open
+                        print("3 this is market order, buy at open")
+                        trade.open_order.execute(curr_open, date)
+                        return curr_open, trade.open_order.shares
+                    else: # this is a limit order
+                        if trade.open_order.limit > curr_low: # when limit price is within the day's range
+                            print("4 executing the limit buy, because within the day's range")
+                            trade.open_order.execute(trade.open_order.limit, date)
+                            return trade.open_order.limit, trade.open_order.shares
+
+                else: # buy order is closed, nothing to do
+                    # print("5 nothing to do, buy order is closed and no open sell order...")
+                    pass
+
+            else: # handle pending SELL order; no need to check is is closed because the trade would be closed
+                print("6 handling a pending sell order")
+                if trade.close_order.is_market: # handle a market SELL
+                    print("7 handling market SELL")
+                    trade.close_order.execute(curr_open, date)
+                    trade.try_close()
+                    return curr_open, trade.close_order.shares
+                else: # handle a limit SELL
+                    print("8 handling limit sell")
+                    if trade.close_order.limit < curr_high: # when limit price is within the day's range
+                        print("9 executing the limit sell, because within the day's range")
+                        trade.close_order.execute(trade.close_order.limit, date)
+                        trade.try_close()
+                        return trade.close_order.limit, trade.open_order.shares
+
+
+            # else: # nothing to do : no new order and no market/limit calls to do
+                # print("10 nothing to do: no new order and no market/limit calls to do...")
+                # pass
+
+        if new_order is not None: # some new order
+            print("11 handling new order")
+            matching_trades = [trade for trade in self.trades if (trade.is_open and trade.open_order.ticker==t)]
+            if new_order.is_buy: # new order is BUY
+                print("12 new order is BUY")
+                if len(matching_trades)==0: # no open orders, placing new order in a new trade
+                    print("13 placing new order in a new trade")
+                    trade = Trade( new_order )
+                    self.trades.append( trade )
+                else: # placing a new order in an old trade, replacement
+                    print("14 placing a new order in an old trade")
+                    trade = matching_trades[0]
+                    trade.open_order = new_order
+                    trade.close_order = None # just to be sure...
+
+            else: # new order is SELL
+                print("15 new order is SELL")
+                if len(matching_trades) == 0:
+                    self.log(f"    Warning: trying to close a non-existing position ({t})!")
+                else: # replacing an old sell order or installing a new one
+                    print("16 replacing an old sell order or installing a new one")
+                    trade = matching_trades[0]
+                    trade.close_order = new_order
+
+        return price, shares_change
     
     def log(self, msg):
         if self.verbose:
@@ -233,7 +318,7 @@ class Account():
         
     def run(self, tickers=None, start=None, end=None):
         """
-            The actual run through the dates, for each ticker
+            Market simulator: the actual run through the dates, for each ticker
         """
 
         tickers = self.warm_up(tickers, start, end)
@@ -280,43 +365,30 @@ class Account():
                     buy_price=None,
                 )
 
-                if shares_change is None:
-                    continue
-                
-                # TBD: change to order management...
-                order = Order( # this is for market only, i.e. instant execution!
-                    ticker=t,
-                    shares=shares_change,
-                    limit=limit,
-                    quality=quality,
-                    on_create_date=date,
-                    on_create_price=curr_close,
-                    valid_until=None,
-                    memo=None,
-                )
+                if shares_change is not None:
+                    print("creating a new order instance with limit", limit)
+                    new_order = Order( # this is for market only, i.e. instant execution!
+                        ticker=t,
+                        shares=shares_change,
+                        limit=limit,
+                        quality=quality,
+                        on_create_date=date,
+                        on_create_price=curr_close,
+                        valid_until=None,
+                        memo=None,
+                    )
+                else:
+                    new_order = None
 
-                if order.is_buy:
-                    trade = Trade( order )
-                    self.trades.append( trade )
-                else: # if order is_close, search for matching trade that is open
-                    matching_trades = [trade for trade in self.trades if (trade.is_open and trade.open_order.ticker==t)]
-                    if len(matching_trades) > 1:
-                        raise Exception("Too many matching trades!")
-                    elif len(matching_trades) == 0:
-                        self.log(f"    Warning: trying to close a non-existing position ({t})!")
-                    else:
-                        trade = matching_trades[0]
-                        trade.set_close( order )
+                """
+                    Handling trades and orders
+                """
 
+                price, shares_change = self.order_mngmt(t, date, new_order)
 
-                # edit below based on trades and orders? 
-                # tbd no cash check
-                if order.is_market:
-                    if (shares_change * curr_close) <= self.cash:
-                        self.shares[t] += shares_change
-                        self.cash -= shares_change * curr_close
-                    else:
-                        raise Exception("Not enough cash!")
+                if shares_change!=0:
+                    self.shares[t] += shares_change
+                    self.cash -= shares_change * price
 
                 """
                     Handle commission
@@ -324,6 +396,12 @@ class Account():
                 curr_commission = self.commission.get(shares_change, curr_close)
                 self.cash -= curr_commission
                 self.commission_total += curr_commission
+                
+                # TODO!
+                if self.cash < 0: # this should not happen, but who knows?
+                    pass
+                    # print("WARNING! Negative cash!")
+                    # raise Exception("Not enough cash!")
 
             self.observe(date,tickers)
             self.do_benchmark(date,tickers,start)
