@@ -253,12 +253,12 @@ class Account():
 
                 if trade.open_order.executed_date is None: # buy order is not closed
                     if trade.open_order.is_market: # this is market order, buy at open
-                        print("3 this is market order, buy at open")
+                        # print("3 this is market order, buy at open")
                         trade.open_order.execute(curr_open, date)
                         return curr_open, trade.open_order.shares
                     else: # this is a limit order
                         if trade.open_order.limit > curr_low: # when limit price is within the day's range
-                            print("4 executing the limit buy, because within the day's range")
+                            # print("4 executing the limit buy, because within the day's range")
                             trade.open_order.execute(trade.open_order.limit, date)
                             return trade.open_order.limit, trade.open_order.shares
 
@@ -269,14 +269,14 @@ class Account():
             else: # handle pending SELL order; no need to check is is closed because the trade would be closed
                 # print("6 handling a pending sell order")
                 if trade.close_order.is_market: # handle a market SELL
-                    print("7 handling market SELL")
+                    # print("7 handling market SELL")
                     trade.close_order.execute(curr_open, date)
                     trade.try_close()
                     return curr_open, trade.close_order.shares
                 else: # handle a limit SELL
                     # print("8 handling limit sell")
                     if trade.close_order.limit < curr_high: # when limit price is within the day's range
-                        print("9 executing the limit sell, because within the day's range")
+                        # print("9 executing the limit sell, because within the day's range")
                         trade.close_order.execute(trade.close_order.limit, date)
                         trade.try_close()
                         return trade.close_order.limit, trade.close_order.shares
