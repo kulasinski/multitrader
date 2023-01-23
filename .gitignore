@@ -2,3 +2,4 @@
 notatki.txt
 _multitrader.py
 multitrader/__pycache__/
+wandb/*
