@@ -24,7 +24,7 @@ class ModelTuner(dict):
     ### FEATURE HANDLING ###
 
     def import_features(self) -> None:
-        print("Loading features file...")
+        # print("Loading features file...")
         self.F = pd.read_csv(self.features_file)
 
     def get_features_df(self) -> pd.DataFrame:
@@ -44,7 +44,7 @@ class ModelTuner(dict):
             * (by) ticker: requires test_tickers (list)
         """
 
-        print("Separating X/y/INFO")
+        # print("Separating X/y/INFO")
 
         self.X    = self.F[self.columns_x]
         self.y    = self.F[self.columns_y]
@@ -115,9 +115,9 @@ class ModelTuner(dict):
     ### CLASSIFIER ###
 
     def build_classifiers(self, classifier_params: dict, seeds: list) -> None:
-        print(f"Building classifiers with {len(seeds)} different seeds...")
+        # print(f"Building classifiers with {len(seeds)} different seeds...")
         self.clfs = [GradientBoostingClassifier(**classifier_params, random_state=seed) for seed in seeds]
-        print(f"Classifier params: {self.clfs[0].get_params()}")
+        # print(f"Classifier params: {self.clfs[0].get_params()}")
 
     def train_classifiers(self) -> None:
         print("Training classifiers.",end='')
@@ -127,7 +127,7 @@ class ModelTuner(dict):
         print(" complete.")
 
     def predict(self, threshold) -> None:
-        print("Predicting class of tradeability...")
+        # print("Predicting class of tradeability...")
         self.y_preds = []
         for i,_ in enumerate(self.clfs):
             y_pred_proba = self.clfs[i].predict_proba(self.X_test)
@@ -151,6 +151,7 @@ class ModelTuner(dict):
         print(f"        std: {round(np.std(P))}%")
         avg_train_precision = self.evaluate_training()
         print(f"  (Train P): {round(100*avg_train_precision)}%")
+        
 
         ## RECALL - how many actual good hits we found? % ##
         R = []
@@ -165,6 +166,12 @@ class ModelTuner(dict):
             cm  = confusion_matrix(self.y_test.to_numpy()[:,0], y_pred)
             T.append( cm[:,1].sum() )
         print(f"  Trades:    {round(np.mean(T))}  ({','.join([str(t) for t in T])})")
+
+        ## PREP OUTPUT ##
+        self.out = {
+            'precision': np.mean(P),
+            'recall':    np.mean(R)
+        }
 
     def evaluate_training(self) -> float:
         P =[]
@@ -181,9 +188,20 @@ class ModelTuner(dict):
         """
         return None
 
-    def feature_importance(self):
+    def feature_importance(self) -> None:
         """
             Avg feature importances
             to know which to remove...
         """
-        pass
+        f_imp = None
+        for i,_ in enumerate(self.clfs):
+            f_imp_i = pd.DataFrame({
+                    'feature':self.X.columns.to_list(),
+                    f'imp_{i}':self.clfs[i].feature_importances_})\
+                    .set_index('feature')
+            if f_imp is None:
+                f_imp = f_imp_i
+            else:
+                f_imp = f_imp.join(f_imp_i)
+        f_imp = f_imp.mean(axis=1).sort_values(ascending=False)
+        print(f_imp)
