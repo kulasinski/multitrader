@@ -1,22 +1,24 @@
-MY OPTIMIZER:
+MY OPTIMIZER (ModelTuner class):
 Cel: znajduje najlepsze parametry do modelu
 Output: model ktory decyduje, ze cena wzrosnie o co najmniej 10% i nie spadnie poniżej -50%. Tabela: threshold/avg_precision
 Performance: przy małych oczekiwaniach (1-2 propozycje na m-c), model wskazuje z 90-100% skutecznością czy dany ticker spełnia powyższe (precision)
 
 TODO:
- - klasa z metodami
- - rozny podzial na test/train: wg. daty (ale tylko 2022), wg. tickera
- - ewaluacja modelu na zbiorze testowym (oraz treningowym zeby okreslic bias), uzywajac 10 (ustalonych) seed
+ + klasa z metodami
+ + rozny podzial na test/train: wg. daty (ale tylko 2022), wg. tickera
+ + ewaluacja modelu na zbiorze testowym (oraz treningowym zeby okreslic bias), uzywajac 10 (ustalonych) seed
  - ewaluacja: (avg of) max precision (manipulujac thresholdem) dla min. tot_positives
- - tot_positives jest okreslane dynamicznie na podstawie rozmiaru zbioru testowego (np. 2/m-c)
+ + tot_positives jest okreslane dynamicznie na podstawie rozmiaru zbioru testowego (np. 2/m-c)
+ + po wyznaczeniu ktore featury sa istotne, pozostale odrzucic i przeliczyc F bo przez nulle sporo odpada (patrz nizej)
+ + ostateczny wybor parametrow/modelu musi przebiegac dla 10 roznych split-seedów
+ + model(s) persistence
 
 TODO pozniej:
- - combo optimizer:
- - wybor cech
+ - !combo optimizer: to jest teraz zrobione ręcznie na wystarcająco dobrym poziomie...
+ + wybor cech
  - wybor parametrow
  - logowanie tychze
- - feature importance
- - starter: training.ipynb
+ + feature importance
 
 
 
@@ -27,8 +29,9 @@ TODO pozniej:
 HANDEL:
 Cel: podejmowanie decyzji o kupnie/sprzedazy dla danego tickera
 Input: output z klasyfikatora (powyzej) oraz jego dane uczące. Bieżące kursy.
-Symulator: daje uzysk per tranzakcja i na m-c/rok przy randomowaych tickerach i datach. UWAGA: precicion na test i train z klasyfikatora muszą być na zbliżonym poziomie.
+Symulator: daje uzysk per tranzakcja i na m-c/rok przy randomowaych tickerach i datach. UWAGA: precicion na test i train z klasyfikatora muszą być na zbliżonym poziomie 
+- już nie bo uczymy tylko na testowym zbiorze, tyle że na 10 seedach więc danych jest dużo.
 
 TODO:
- - ...
+ + import danych z model tunera
  - ...

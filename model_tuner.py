@@ -1,3 +1,5 @@
+# This is the class for training the classifier (not)/profitable. It requires the raw_feature.csv to be created by feature_eng.ipynb (?)
+
 import pandas as pd
 import numpy as np
 import random
@@ -182,12 +184,6 @@ class ModelTuner(dict):
             P.append(p)
         return np.mean(P)
 
-    def aggregate_predictions(self) -> pd.DataFrame:
-        """
-            TODO
-        """
-        return None
-
     def feature_importance(self) -> None:
         """
             Avg feature importances
@@ -205,3 +201,22 @@ class ModelTuner(dict):
                 f_imp = f_imp.join(f_imp_i)
         f_imp = f_imp.mean(axis=1).sort_values(ascending=False)
         print(f_imp)
+
+    ## PERSISTING TO SIMULATOR ##
+
+    def persist_artifacts(self, location: str) -> None:
+        out = self.F.iloc[self.ndx_test]
+        out.loc[:,'pred'] = self.aggregate_predictions()['mean'].to_numpy()
+        out.to_csv(location, index=False)
+
+    def aggregate_predictions(self) -> pd.DataFrame:
+        """
+            This is to make sure the simulator can learn on test sets
+        """
+        agg = pd.DataFrame()
+        for i,_ in enumerate(self.clfs):
+            y_proba = self.clfs[i].predict_proba(self.X_test)[:,1]
+            agg[str(i)] = y_proba
+        agg.loc[:,'mean'] = agg.mean(axis=1)
+        agg.to_csv('tmp.csv')
+        return agg

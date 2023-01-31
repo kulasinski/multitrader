@@ -1,3 +1,5 @@
+# This code is the runner for model_tuner class.
+
 from model_tuner import ModelTuner
 import numpy as np
 # TODO: dodac close and vol var, jako feature
@@ -34,23 +36,29 @@ PARAMS = {
         'criterion': 'squared_error'
     },
     'classifier_seeds': [1,2,3,4,5,6,7,8,9,10],
-    'threshold': 0.78, # this should be automatically figured out... TODO
+    'threshold': 0.5, # this should be automatically figured out... TODO
     'target_recall': 0.05, #2/m-c=24/year=72/1830~=0.04 TODO this is not used yet! OR 72/4000~=0.018
 }
 
 # RANDOM: best so far 84.1/4.16 przy depth=1, th=0.7, sample=0.8, n_est=30, lr=0.1 albo 85/3 przy depth=2 i th=0.78
 # DATE/2022-10-01 : best 92/4 above with depth=2, th=0.7
 
-## SINGLE TEST ##
-# MT = ModelTuner(**PARAMS)
-# MT.feature_importance()
+MODE = 'single' # single|loop
 
-## LOOP TEST - more reliable, makes sense only when random spliting ## 
-results = []
-for split_seed in range(10):
-    PARAMS['split_seed'] = split_seed
+if MODE=='multi':
+    ## SINGLE TEST ##
     MT = ModelTuner(**PARAMS)
-    results.append(MT.out)
-MT.feature_importance()
-print("AVG PRECISION:",np.mean([o['precision'] for o in results]))
-print("AVG RECALL:   ",np.mean([o['recall'] for o in results]))
+    MT.feature_importance()
+    MT.persist_artifacts('model_cls/test.csv')
+
+else:
+    ## LOOP TEST - more reliable, makes sense only when random spliting ## 
+    results = []
+    for split_seed in range(10):
+        PARAMS['split_seed'] = split_seed
+        MT = ModelTuner(**PARAMS)
+        results.append(MT.out)
+        MT.persist_artifacts(f'model_cls/seed_{split_seed}.csv')
+    MT.feature_importance()
+    print("AVG PRECISION:",np.mean([o['precision'] for o in results]))
+    print("AVG RECALL:   ",np.mean([o['recall'] for o in results]))
