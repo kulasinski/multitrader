@@ -20,6 +20,13 @@ TODO pozniej:
  - logowanie tychze
  + feature importance
 
+MODEL IMPROVEMENT:
+ - market cap z fast info
+ - 90d min, 90d max jako featury
+ - poprzednie earningsy (2) w stosunku do ostatniego
+ - zrobic wartosci wlasne (?) zeby usunac korelacje zmiennych
+
+
 
 
 
